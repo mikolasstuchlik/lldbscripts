@@ -35,7 +35,7 @@ void __lldbscript__MetadataName(void * metadata) {
     }
 }
 
-void __lldbscript__print_retain_count(void * ptr, const char * prefix, uint32_t prefix_len) {
+void __lldbscript__PrintRetainCount(void * ptr, const char * prefix, uint32_t prefix_len) {
     if (ptr == NULL) {
         (void)__lldbscript__PutStr(prefix, prefix_len);
         (void)__lldbscript__PutStr("NULL\n", 5);

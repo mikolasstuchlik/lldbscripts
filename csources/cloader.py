@@ -17,11 +17,18 @@ class CLoader:
         return result
 
 class PrivateCFiles:
-    lldb_null: CLoader = CLoader("lldb_null.h", "LLDB sometimes lacks NULL, this defines NULL as 0")
+    lldb_null: CLoader = CLoader("commons/lldb_null.h", "LLDB sometimes lacks NULL, this defines NULL as 0")
 
 class CFiles:
-    printing: CLoader = CLoader("printing.c", "Utilities for printing without printf")
-    swift_printing: CLoader = CLoader("swift_printing.c", "Utilities for printing Swift types", requiresNull=True)
+    printing: CLoader = CLoader("commons/printing.c", "Utilities for printing without printf")
+    swift_printing: CLoader = CLoader("commons/swift_printing.c", "Utilities for printing Swift types", requiresNull=True)
+
+    alloc_override: CLoader = CLoader("arctool/allocobject_override.c")
+    alloc_interpose: CLoader = CLoader("arctool/allocobject_interposer.c")
+    retain_override: CLoader = CLoader("arctool/retain_override.c")
+    retain_interpose: CLoader = CLoader("arctool/retain_interposer.c")
+    release_override: CLoader = CLoader("arctool/release_override.c")
+    release_interpose: CLoader = CLoader("arctool/release_interposer.c")
 
 def load_c_file(file: CLoader) -> str:
     result: str = ""

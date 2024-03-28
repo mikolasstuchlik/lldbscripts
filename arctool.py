@@ -7,58 +7,6 @@ from typing import Any, Optional, Union
 from commons import evaluate_c_expression, dump_expr_error
 from csources import cloader
 
-multiline_litera__expr__release_code: str = """
-void (*__lldbscript__original_swift_release)(void *); 
-
-void __lldbscript__new_release(void * ptr) {
-    (void)__lldbscript__print_retain_count(ptr, "will release: ", 14);
-    __lldbscript__original_swift_release(ptr); 
-}
-
-"""
-
-multiline_litera__expr__release_interpose: str = """
-__lldbscript__original_swift_release = (void (*)(void *))_swift_release;
-_swift_release = (void *)&__lldbscript__new_release;
-
-"""
-
-multiline_litera__expr__retain_code: str = """
-void *(*__lldbscript__original_swift_retain)(void *); 
-
-void *__lldbscript__new_retain(void * ptr) { 
-    (void)__lldbscript__print_retain_count(ptr, "will retain: ", 13);
-    return __lldbscript__original_swift_retain(ptr); 
-}
-
-"""
-
-multiline_litera__expr__retain_interpose: str = """
-__lldbscript__original_swift_retain = (void *(*)(void *))_swift_retain;
-_swift_retain = (void *)&__lldbscript__new_retain;
-
-"""
-
-multiline_litera__expr__allocObject_code: str = """
-void * (*__lldbscript__original_swift_allocObject)(void *, size_t, size_t); 
-
-void * __lldbscript__new_swift_allocObject(void * heap_metadata, size_t size, size_t alignment) {
-    void * new_alloc = __lldbscript__original_swift_allocObject(heap_metadata, size, alignment);
-    (void)__lldbscript__metadata_name(heap_metadata);
-    (void)__lldbscript__putstr("Did allocate ptr: ", 18);
-    (void)__lldbscript__putp(new_alloc);
-    (void)__lldbscript__putstr("\\n", 1);
-    return new_alloc;
-}
-
-"""
-
-multiline_litera__expr__allocObject_interpose: str = """
-__lldbscript__original_swift_allocObject = (void *(*)(void *, size_t, size_t))_swift_allocObject;
-_swift_allocObject = (void *)&__lldbscript__new_swift_allocObject;
-
-"""
-
 def make_breakpoint(frame: lldb.SBFrame, address: int):
     thread: lldb.SBThread = frame.GetThread()
     process: lldb.SBProcess = thread.GetProcess() 
@@ -86,25 +34,25 @@ class ArcTool:
         dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.swift_printing), top_level=True))
 
     def __override_swift_retain(self, frame: lldb.SBFrame) -> Optional[int]:
-        if dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__retain_code, top_level=True)) == None:
+        if dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.retain_override), top_level=True)) == None:
             return None
-        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__retain_interpose))
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.retain_interpose)))
         if result == None:
             return None
         return result.GetValueAsAddress()
 
     def __override_swift_release(self, frame: lldb.SBFrame) -> Optional[int]:
-        if dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__release_code, top_level=True)) == None:
+        if dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.release_override), top_level=True)) == None:
             return None
-        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__release_interpose))
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.release_interpose)))
         if result == None:
             return None
         return result.GetValueAsAddress()
     
     def __override_swift_allocObject(self, frame: lldb.SBFrame) -> Optional[int]:
-        if dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__allocObject_code, top_level=True)) == None:
+        if dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.alloc_override), top_level=True)) == None:
             return None
-        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__allocObject_interpose))
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.alloc_interpose)))
         if result == None:
             return None
         return result.GetValueAsAddress()

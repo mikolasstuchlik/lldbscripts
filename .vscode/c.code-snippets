@@ -1,0 +1,44 @@
+{
+    "TopLevel": {
+      "prefix": ["dtop"],
+      "body": [
+        "#ifndef ${1:file}", 
+        "#define ${1:file}",
+        "",
+        "#ifndef LLDB_EXPR_ENV",
+        "#include <stdbool.h>",
+        "#include <stdint.h>",
+        "#endif /*LLDB_EXPR_ENV*/",
+        "",
+        "$0", 
+        "",
+        "#endif /*${1:file}*/",
+        ""
+      ],
+      "description": "Template for LLDB expression file"
+    },
+    "Expr": {
+      "prefix": ["dexp"],
+      "body": [
+        "#ifndef ${1:file}", 
+        "#define ${1:file}",
+        "",
+        "#ifndef LLDB_EXPR_ENV",
+        "#include <stdbool.h>",
+        "#include <stdint.h>",
+        "#endif /*LLDB_EXPR_ENV*/",
+        "",
+        "#ifndef LLDB_EXPR_ENV",
+        "void interposer() {",
+        "#endif /*LLDB_EXPR_ENV*/",
+        "\t$0", 
+        "#ifndef LLDB_EXPR_ENV",
+        "}",
+        "#endif /*LLDB_EXPR_ENV*/",
+        "",
+        "#endif /*${1:file}*/",
+        ""
+      ],
+      "description": "Template for LLDB expression file"
+    }
+  }
