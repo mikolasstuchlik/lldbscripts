@@ -1,8 +1,69 @@
+# https://github.com/apple/swift/blob/main/include/swift/Runtime/InstrumentsSupport.h
+
 import lldb
 import os
 import re
 from typing import Any, Optional, Union
-from commons import evaluate_c_expression
+from commons import evaluate_c_expression, dump_expr_error
+from csources import cloader
+
+multiline_litera__expr__release_code: str = """
+void (*__lldbscript__original_swift_release)(void *); 
+
+void __lldbscript__new_release(void * ptr) {
+    (void)__lldbscript__print_retain_count(ptr, "will release: ", 14);
+    __lldbscript__original_swift_release(ptr); 
+}
+
+"""
+
+multiline_litera__expr__release_interpose: str = """
+__lldbscript__original_swift_release = (void (*)(void *))_swift_release;
+_swift_release = (void *)&__lldbscript__new_release;
+
+"""
+
+multiline_litera__expr__retain_code: str = """
+void *(*__lldbscript__original_swift_retain)(void *); 
+
+void *__lldbscript__new_retain(void * ptr) { 
+    (void)__lldbscript__print_retain_count(ptr, "will retain: ", 13);
+    return __lldbscript__original_swift_retain(ptr); 
+}
+
+"""
+
+multiline_litera__expr__retain_interpose: str = """
+__lldbscript__original_swift_retain = (void *(*)(void *))_swift_retain;
+_swift_retain = (void *)&__lldbscript__new_retain;
+
+"""
+
+multiline_litera__expr__allocObject_code: str = """
+void * (*__lldbscript__original_swift_allocObject)(void *, size_t, size_t); 
+
+void * __lldbscript__new_swift_allocObject(void * heap_metadata, size_t size, size_t alignment) {
+    void * new_alloc = __lldbscript__original_swift_allocObject(heap_metadata, size, alignment);
+    (void)__lldbscript__metadata_name(heap_metadata);
+    (void)__lldbscript__putstr("Did allocate ptr: ", 18);
+    (void)__lldbscript__putp(new_alloc);
+    (void)__lldbscript__putstr("\\n", 1);
+    return new_alloc;
+}
+
+"""
+
+multiline_litera__expr__allocObject_interpose: str = """
+__lldbscript__original_swift_allocObject = (void *(*)(void *, size_t, size_t))_swift_allocObject;
+_swift_allocObject = (void *)&__lldbscript__new_swift_allocObject;
+
+"""
+
+def make_breakpoint(frame: lldb.SBFrame, address: int):
+    thread: lldb.SBThread = frame.GetThread()
+    process: lldb.SBProcess = thread.GetProcess() 
+    target: lldb.SBTarget = process.GetTarget()
+    target.GetDebugger().HandleCommand(f"breakpoint set -a {hex(address)}")
 
 class ArcTool:
     key: str = "ArcToolContext"
@@ -15,68 +76,39 @@ class ArcTool:
             return
         
         self.context_initialized = True
-        #self.__override_swift_release(frame)
-        print(self.__override_swift_allocObject(frame))
+        self.__inject_supporting_c_routines(frame)
+        self.__override_swift_retain(frame)
+        self.__override_swift_release(frame)
+        self.__override_swift_allocObject(frame)
     
-    def __override_swift_release(self, frame: lldb.SBFrame) -> int:
-        expression: str = """
-void (*__lldbscript__original_swift_release)(void *); 
+    def __inject_supporting_c_routines(self, frame: lldb.SBFrame):
+        dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.printing), top_level=True))
+        dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.swift_printing), top_level=True))
 
-void * last_destroyed;
+    def __override_swift_retain(self, frame: lldb.SBFrame) -> Optional[int]:
+        if dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__retain_code, top_level=True)) == None:
+            return None
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__retain_interpose))
+        if result == None:
+            return None
+        return result.GetValueAsAddress()
 
-void __lldbscript__new_release(void * ptr) { 
-    if (ptr != 0) { 
-        char * res = (char *)swift_getTypeName(*(void **)ptr, true); 
-        if (res != 0) {
-            (int)printf("%s\n", res);
-        }
-    }
-    (int)printf("%p %p\\n", ptr, last_destroyed);
-    last_destroyed = ptr;
-    __lldbscript__original_swift_release(ptr); 
-}
-
-"""
-        evaluate_c_expression(frame, expression, top_level=True)
-
-        expression: str = """
-__lldbscript__original_swift_release = (void (*)(void *))_swift_release;
-_swift_release = (void *)&__lldbscript__new_release;
-
-"""
-        return evaluate_c_expression(frame, expression).GetValueAsAddress()
+    def __override_swift_release(self, frame: lldb.SBFrame) -> Optional[int]:
+        if dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__release_code, top_level=True)) == None:
+            return None
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__release_interpose))
+        if result == None:
+            return None
+        return result.GetValueAsAddress()
     
+    def __override_swift_allocObject(self, frame: lldb.SBFrame) -> Optional[int]:
+        if dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__allocObject_code, top_level=True)) == None:
+            return None
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, multiline_litera__expr__allocObject_interpose))
+        if result == None:
+            return None
+        return result.GetValueAsAddress()
 
-
-    def __override_swift_allocObject(self, frame: lldb.SBFrame) -> int:
-        expression: str = """
-void * (*__lldbscript__original_swift_allocObject)(void *, size_t, size_t); 
-
-void * __lldbscript__new_swift_allocObject(void * heap_metadata, size_t size, size_t alignment) {
-    if (heap_metadata != 0) { 
-        char * res = (char *)swift_getTypeName(heap_metadata, true); 
-        if (res != 0) {
-            (int)printf("%s\\n", res);
-        }
-        res = (char *)swift_OpaqueSummary(heap_metadata); 
-        if (res != 0) {
-            (int)printf("%s\\n", res);
-        }
-    }
-    return __lldbscript__original_swift_allocObject(heap_metadata, size, alignment); 
-}
-
-"""
-        print(evaluate_c_expression(frame, expression, top_level=True))
-
-        expression: str = """
-__lldbscript__original_swift_allocObject = (void *(*)(void *, size_t, size_t))_swift_allocObject;
-_swift_allocObject = (void *)&__lldbscript__new_swift_allocObject;
-
-"""
-        return evaluate_c_expression(frame, expression).GetValueAsAddress()
-
-#  (int)printf("%s\n", (char *)swift_getTypeName(heap_metadata, true));
 def lazy_init(context: dict[str, Any]) -> ArcTool:
     def initializeNew() -> ArcTool:
         newInstace = ArcTool()
@@ -108,11 +140,13 @@ def arctool(
     tool_instance.lazy_initialize_context(selected_frame)
     return
 
-
-
 def __lldb_init_module(
         debugger: lldb.SBDebugger, 
         internal_dict: dict[str, Any]
         ):
+    # install script
     debugger.HandleCommand("command script add -f " + __name__ + ".arctool arctool")
-    print("Retain script loaded")
+    print("Script `arctool` is installed.")
+
+    # create dummy breakpoint which will install arctool
+    debugger.HandleCommand("breakpoint set -n main -C arctool -C c") # make onetime

@@ -71,11 +71,23 @@ def address_is_in_executable_memory(process: lldb.SBProcess, address: int) -> bo
     else:
         return False
 
-def evaluate_c_expression(frame: lldb.SBFrame, expression: str, top_level: bool = False) -> lldb.SBValue:
+def evaluate_c_expression(frame: lldb.SBFrame, expression: str, top_level: bool = False) -> tuple[bool, lldb.SBValue]:
     options = lldb.SBExpressionOptions()
     options.SetLanguage(lldb.eLanguageTypeC)
     options.SetGenerateDebugInfo(True)
     if top_level == True:
         options.SetTopLevel(True)
     summary_result: lldb.SBValue = frame.EvaluateExpression(expression, options)
-    return summary_result
+    success: bool = True
+    error: lldb.SBError = summary_result.GetError()
+    # https://discourse.llvm.org/t/lldb-expressions-unknown-error-is-returned-upon-successful-evaluation/78012
+    if not error.Success() and error.GetCString() != "unknown error":
+        success = False
+    return (success, summary_result)
+
+def dump_expr_error(result: tuple[bool, lldb.SBValue]) -> Optional[lldb.SBValue]:
+    if result[0] == False:
+        print(result[1].GetError().GetCString())
+        return None
+
+    return result[1]
