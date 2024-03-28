@@ -14,4 +14,11 @@ void __lldbscript__new_release(void * ptr) {
     __lldbscript__original_swift_release(ptr); 
 }
 
+void (*__lldbscript__original_swift_release_n)(void *, uint32_t); 
+
+void __lldbscript__new_release_n(void * ptr, uint32_t n) {
+    (void)__lldbscript__PrintRetainCount(ptr, "will release: ", 14);
+    __lldbscript__original_swift_release_n(ptr, n); 
+}
+
 #endif /*RELEASE_OVERRIDE_C*/

@@ -14,7 +14,7 @@ void * __lldbscript__new_swift_allocObject(void * heap_metadata, size_t size, si
     (void)__lldbscript__MetadataName(heap_metadata);
     (void)__lldbscript__PutStr("Did allocate ptr: ", 18);
     (void)__lldbscript__PutPtr(new_alloc);
-    (void)__lldbscript__PutStr("\\n", 1);
+    (void)__lldbscript__PutStr("\n", 1);
     return new_alloc;
 }
 
