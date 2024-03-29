@@ -61,8 +61,12 @@ void __lldbscript__PutUnsignedDecimal(uint64_t number) {
 }
 
 void __lldbscript__PutPtr(void * ptr) {
-    __lldbscript__PutStr("0x", 2);
-    __lldbscript__PutUnsignedX((uint64_t)ptr, 8);
+    if (ptr == NULL) {
+        __lldbscript__PutStr("NULL", 4);
+    } else {
+        __lldbscript__PutStr("0x", 2);
+        __lldbscript__PutUnsignedX((uint64_t)ptr, 8);
+    }
 }
 
 #endif /*PRINTING_C*/
