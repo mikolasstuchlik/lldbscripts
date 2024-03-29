@@ -2,7 +2,8 @@
 
 import lldb
 import os
-import re
+import argparse
+import shlex
 from typing import Any, Optional, Union
 from commons import evaluate_c_expression, dump_expr_error
 from csources import cloader
@@ -84,17 +85,37 @@ def arctool(
     thread: lldb.SBThread = process.GetSelectedThread()
     selected_frame: lldb.SBFrame = thread.GetSelectedFrame()
 
-    tool_instance: ArcTool = lazy_init(dict)
-    tool_instance.lazy_initialize_context(selected_frame)
-    return
+    parser: argparse.ArgumentParser = generateOptionParser()
+    args = parser.parse_args(shlex.split(command))
+    
+    if args.command == "init":
+        tool_instance: ArcTool = lazy_init(dict)
+        tool_instance.lazy_initialize_context(selected_frame)
+    elif args.command == "monitor":
+        pass
+    else:
+        pass
+
+def generateOptionParser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(usage='arctool [command]')
+    subparsers = parser.add_subparsers(title='Available commands', dest='command')
+    subparsers.add_parser('init', help='Initializes the arctool. Use when process is running.')
+    return parser
 
 def __lldb_init_module(
         debugger: lldb.SBDebugger, 
         internal_dict: dict[str, Any]
         ):
     # install script
-    debugger.HandleCommand("command script add -f " + __name__ + ".arctool arctool")
+    helpText: str = generateOptionParser().format_help()
+    debugger.HandleCommand(
+        'command script add --help "{help}" --function {function} {name}'.format(
+            help="\xa0" + helpText.replace("\n", "\n\xa0").replace('"', '\\"') + "\n",  # escape quotes
+            function=__name__ + ".arctool",
+            name="arctool"
+        )
+    )
     print("Script `arctool` is installed.")
 
     # create dummy breakpoint which will install arctool
-    debugger.HandleCommand("breakpoint set -n main -C arctool -C c") # make onetime
+    debugger.HandleCommand("breakpoint set -n main -C 'arctool init' -C c") # make onetime
