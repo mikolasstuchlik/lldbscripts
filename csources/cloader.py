@@ -24,7 +24,7 @@ class CFiles:
     swift_printing: CLoader = CLoader("commons/swift_printing.c", "Utilities for printing Swift types", requiresNull=True)
 
     acrtool_resolution: CLoader = CLoader("arctool/arctool_resolution.c", requiresNull=True)
-    alloc_override: CLoader = CLoader("arctool/allocobject_override.c")
+    alloc_override: CLoader = CLoader("arctool/allocobject_override.c", requiresNull=True)
     alloc_interpose: CLoader = CLoader("arctool/allocobject_interposer.c")
     retain_override: CLoader = CLoader("arctool/retain_override.c")
     retain_interpose: CLoader = CLoader("arctool/retain_interposer.c")

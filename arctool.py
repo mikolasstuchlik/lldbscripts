@@ -1,5 +1,4 @@
 # https://github.com/apple/swift/blob/main/include/swift/Runtime/InstrumentsSupport.h
-# closure.Cls
 import lldb
 import os
 import argparse

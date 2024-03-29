@@ -18,20 +18,32 @@ char * swift_OpaqueSummary(void *);
 char * swift_getTypeName(void *, bool);
 #endif /*LLDB_EXPR_ENV*/
 
-void __lldbscript__MetadataName(void * metadata) { 
-    if (metadata != NULL) { 
-        char * result = NULL;
-        result = (char *)swift_OpaqueSummary(metadata); 
-        if (result != NULL) {
-            (int)printf("%s\n", result);
-            return;
+const char * __lldbscript__string_describing(void * metadata) {
+    if (metadata == NULL) { 
+        return NULL;
+    }
+
+    char * result = NULL;
+    result = (char *)swift_OpaqueSummary(metadata); 
+    if (result != NULL) {
+        return result;
+    }
+    result = (char *)swift_getTypeName(metadata, true); 
+    if (result != NULL) {
+        return result;
+    }
+
+    return NULL;
+}
+
+size_t __lldbscript__strlen(const char * str) {
+    if (str == NULL) {
+        return 0;
+    }
+    for(size_t len = 0;; len++) {
+        if (str[len] == '\0') {
+            return len;
         }
-        result = (char *)swift_getTypeName(metadata, true); 
-        if (result != NULL) {
-            (int)printf("%s\n", result);
-            return;
-        }
-        (int)printf("<no description>\n");
     }
 }
 
