@@ -18,6 +18,7 @@ class ArcTool:
 
     def __init__(self):
         self.context_initialized: bool = False
+        self.breakpoint: Optional[lldb.SBBreakpoint] = None
     
     def lazy_initialize_context(self, frame: lldb.SBFrame):
         if self.context_initialized == True:
@@ -73,6 +74,25 @@ class ArcTool:
     def list(self, frame: lldb.SBFrame):
         dump_expr_error(evaluate_c_expression(frame, "(void)__lldbscript__print_buffer();"))
 
+    def toggle_breakpoint(self, target: lldb.SBTarget, frame: lldb.SBFrame):
+        if self.breakpoint == None:
+            result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, "&__lldbscript__breakpoint_slot"))
+            if result == None:
+                print("Could not create breakpoint")
+                return
+            self.breakpoint = target.BreakpointCreateByAddress(result.GetValueAsAddress())
+            print("Breakpoint set")
+            return
+
+        if self.breakpoint.IsEnabled():
+            self.breakpoint.SetEnabled(False)
+            print("Breakpoint toggled off")
+        else:
+            self.breakpoint.SetEnabled(True)
+            print("Breakpoint toggled on")
+        
+        
+
 def lazy_init(context: dict[str, Any]) -> ArcTool:
     def initializeNew() -> ArcTool:
         newInstace = ArcTool()
@@ -103,15 +123,16 @@ def arctool(
     parser: argparse.ArgumentParser = generateOptionParser()
     args = parser.parse_args(shlex.split(command))
     
+    tool_instance: ArcTool = lazy_init(dict)
+
     if args.command == "init":
-        tool_instance: ArcTool = lazy_init(dict)
         tool_instance.lazy_initialize_context(selected_frame)
     elif args.command == "monitor":
-        tool_instance: ArcTool = lazy_init(dict)
         tool_instance.monitor(selected_frame, args.monitor_name)
     elif args.command == "list":
-        tool_instance: ArcTool = lazy_init(dict)
         tool_instance.list(selected_frame)
+    elif args.command == "toggle":
+        tool_instance.toggle_breakpoint(target, selected_frame)
     else:
         pass
 
@@ -126,6 +147,8 @@ def generateOptionParser() -> argparse.ArgumentParser:
 
     subparsers.add_parser('list', help='Lists currently observed types')
 
+    subparsers.add_parser('toggle', help='Toggles the breakpoint or on off')
+
     return parser
 
 def __lldb_init_module(
@@ -136,7 +159,9 @@ def __lldb_init_module(
     helpText: str = generateOptionParser().format_help()
     debugger.HandleCommand(
         'command script add --help "{help}" --function {function} {name}'.format(
-            help="\xa0" + helpText.replace("\n", "\n\xa0").replace('"', '\\"') + "\n",  # escape quotes
+            # escape quotes
+            # I don't know why, but my spaces are getting trimmed.
+            help=helpText.replace(" ", "\xa0").replace('"', '\\"'), 
             function=__name__ + ".arctool",
             name="arctool"
         )
@@ -144,4 +169,4 @@ def __lldb_init_module(
     print("Script `arctool` is installed.")
 
     # create dummy breakpoint which will install arctool
-    debugger.HandleCommand("breakpoint set -n main -C 'arctool init' -C c") # make onetime
+    #debugger.HandleCommand("breakpoint set -n main -C 'arctool init' -C 'arctool monitor -n closure.Cls' -C 'arctool toggle' -C c") # make onetime # escape quotes

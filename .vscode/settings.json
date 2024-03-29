@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "lldb_null.h": "c"
+        "lldb_null.h": "c",
+        "stdint.h": "c"
     }
 }

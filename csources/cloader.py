@@ -26,9 +26,9 @@ class CFiles:
     acrtool_resolution: CLoader = CLoader("arctool/arctool_resolution.c", requiresNull=True)
     alloc_override: CLoader = CLoader("arctool/allocobject_override.c", requiresNull=True)
     alloc_interpose: CLoader = CLoader("arctool/allocobject_interposer.c")
-    retain_override: CLoader = CLoader("arctool/retain_override.c")
+    retain_override: CLoader = CLoader("arctool/retain_override.c", requiresNull=True)
     retain_interpose: CLoader = CLoader("arctool/retain_interposer.c")
-    release_override: CLoader = CLoader("arctool/release_override.c")
+    release_override: CLoader = CLoader("arctool/release_override.c", requiresNull=True)
     release_interpose: CLoader = CLoader("arctool/release_interposer.c")
 
 def load_c_file(file: CLoader) -> str:

@@ -18,7 +18,14 @@ char * swift_OpaqueSummary(void *);
 char * swift_getTypeName(void *, bool);
 #endif /*LLDB_EXPR_ENV*/
 
-const char * __lldbscript__string_describing(void * metadata) {
+void * __lldbscript__HeapObject2Metadata(void * heap_object) {
+    if (heap_object == NULL) {
+        return NULL;
+    }
+    return *(void **)heap_object;
+}
+
+const char * __lldbscript__StringDescribing(void * metadata) {
     if (metadata == NULL) { 
         return NULL;
     }

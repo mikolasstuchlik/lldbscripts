@@ -30,6 +30,7 @@ void __lldbscript__remove(const char *, size_t);
 void __lldbscript__defragment();
 int __lldbscript__match(const char *, size_t, bool);
 void __lldbscript__print_buffer();
+void __lldbscript__breakpoint_slot();
 
 void __lldbscript__initialize_buffer() {
     void * new_buffer = (void *)malloc(RESOLUTION_BUFFER_ALLOC_SIZE);
@@ -205,6 +206,10 @@ void __lldbscript__print_buffer() {
             (void)__builtin_trap();
         }
     }
+}
+
+void __lldbscript__breakpoint_slot() {
+    // This function does nothing. It gets triggered by all monitored instances.
 }
 
 #endif /*ARCTOOL_RESOLUTION_C   */
