@@ -71,6 +71,15 @@ class ArcTool:
         )
         dump_expr_error(evaluate_c_expression(frame, expression))
     
+    def stop_monitoring(self, frame: lldb.SBFrame, name: str):
+        length = len(name)
+        expression: str = '(void)__lldbscript__remove("{name}", {len})'.format(
+            name=name,
+            len=length
+        )
+        dump_expr_error(evaluate_c_expression(frame, expression))
+        
+    
     def list(self, frame: lldb.SBFrame):
         dump_expr_error(evaluate_c_expression(frame, "(void)__lldbscript__print_buffer();"))
 
@@ -90,7 +99,9 @@ class ArcTool:
         else:
             self.breakpoint.SetEnabled(True)
             print("Breakpoint toggled on")
-        
+
+    def defragment(self, frame: lldb.SBFrame):
+        dump_expr_error(evaluate_c_expression(frame, "(void)__lldbscript__defragment();"))
         
 
 def lazy_init(context: dict[str, Any]) -> ArcTool:
@@ -128,11 +139,17 @@ def arctool(
     if args.command == "init":
         tool_instance.lazy_initialize_context(selected_frame)
     elif args.command == "monitor":
-        tool_instance.monitor(selected_frame, args.monitor_name)
+        print(args)
+        if args.stop_monitoring == True:
+            tool_instance.stop_monitoring(selected_frame, args.monitor_name)
+        else:
+            tool_instance.monitor(selected_frame, args.monitor_name)
     elif args.command == "list":
         tool_instance.list(selected_frame)
     elif args.command == "toggle":
         tool_instance.toggle_breakpoint(target, selected_frame)
+    elif args.command == "defragment":
+        tool_instance.defragment(selected_frame)
     else:
         pass
 
@@ -143,11 +160,27 @@ def generateOptionParser() -> argparse.ArgumentParser:
     subparsers.add_parser('init', help='Initializes the arctool. Use when process is running.')
 
     monitor_parser = subparsers.add_parser('monitor', help='Print events related to a specific type.')
-    monitor_parser.add_argument("-n", "--name", type=str, action="store", dest="monitor_name", required=True)
+    monitor_parser.add_argument(
+        "-n", "--name", 
+        type=str, 
+        action="store", 
+        dest="monitor_name", 
+        required=True,
+        help="Full name of a type (or it's description)"
+        )
+    monitor_parser.add_argument(
+        '-s', 
+        '--stop', 
+        action='store_true',
+        dest="stop_monitoring",
+        help="Stops monitoring this type."
+        )
 
     subparsers.add_parser('list', help='Lists currently observed types')
 
     subparsers.add_parser('toggle', help='Toggles the breakpoint or on off')
+
+    subparsers.add_parser('defragment', help='Optimizes the resolution buffer.')
 
     return parser
 
@@ -169,4 +202,4 @@ def __lldb_init_module(
     print("Script `arctool` is installed.")
 
     # create dummy breakpoint which will install arctool
-    #debugger.HandleCommand("breakpoint set -n main -C 'arctool init' -C 'arctool monitor -n closure.Cls' -C 'arctool toggle' -C c") # make onetime # escape quotes
+    debugger.HandleCommand("breakpoint set -n main -C 'arctool init' -C 'arctool monitor -n closure.Cls' -C 'arctool toggle' -C c") # make onetime # escape quotes

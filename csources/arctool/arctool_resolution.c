@@ -26,11 +26,12 @@ void __lldbscript__make_end_node(size_t);
 size_t __lldbscript__end_node_offset();
 size_t __lldbscript__next_node(size_t);
 bool __lldbscript__insert(const char *, size_t);
-void __lldbscript__remove(const char *, size_t);
+bool __lldbscript__remove(const char *, size_t);
 void __lldbscript__defragment();
 int __lldbscript__match(const char *, size_t, bool);
 void __lldbscript__print_buffer();
 void __lldbscript__breakpoint_slot();
+size_t __lldbscript__move(size_t, size_t);
 
 void __lldbscript__initialize_buffer() {
     void * new_buffer = (void *)malloc(RESOLUTION_BUFFER_ALLOC_SIZE);
@@ -101,18 +102,41 @@ bool __lldbscript__insert(const char * type_name, size_t length) {
     return true;
 }
 
-void __lldbscript__remove(const char * match_ptr, size_t length) {
+bool __lldbscript__remove(const char * match_ptr, size_t length) {
     int match = __lldbscript__match(match_ptr, length, false);
     if (match < 0) {
-        return;
+        return false;
     }
     struct __lldbscript__TypeResolverHeader * current 
             = (struct __lldbscript__TypeResolverHeader *)((size_t)__lldbscript__resolutionBuffer + (size_t)match);
     current->is_valid = false;
+
+    return true;
 }
 
 void __lldbscript__defragment() {
-    (void)__builtin_trap();
+    size_t nextOffset = 0;
+    size_t freeOffset = 0;
+    while(true) {
+        struct __lldbscript__TypeResolverHeader * current 
+                = (struct __lldbscript__TypeResolverHeader *)((size_t)__lldbscript__resolutionBuffer + nextOffset);
+
+        if (nextOffset != freeOffset && current->is_valid) {
+            freeOffset = __lldbscript__move(nextOffset, freeOffset);
+        } else if (nextOffset == freeOffset && current->is_valid) {
+            freeOffset = __lldbscript__next_node(nextOffset);
+        }
+
+        size_t next = __lldbscript__next_node(nextOffset);
+        if (next == 0) {
+            break;
+        }
+        nextOffset = next;
+        if (nextOffset >= RESOLUTION_BUFFER_ALLOC_SIZE) {
+            (void)__builtin_trap();
+        }
+    }
+    __lldbscript__make_end_node(freeOffset);
 }
 
 int __lldbscript__match(const char * match_ptr, size_t length, bool save_match_ptr) {
@@ -125,12 +149,12 @@ int __lldbscript__match(const char * match_ptr, size_t length, bool save_match_p
                 return (int)offset;
             }
             if (current->size != length) {
-                return -1;
+                goto NextCycle;
             }
             char * name_buffer_ptr = (char *)((size_t)current + sizeof(struct __lldbscript__TypeResolverHeader));
             for (size_t i = 0; i < length; i++) {
                 if (name_buffer_ptr[i] != match_ptr[i]) {
-                    return -1;
+                    goto NextCycle;
                 }
             }
             if (save_match_ptr) {
@@ -139,6 +163,7 @@ int __lldbscript__match(const char * match_ptr, size_t length, bool save_match_p
             return (int)offset;
         }
 
+        NextCycle:
         size_t next = __lldbscript__next_node(offset);
         if (next == 0) {
             return -1;
@@ -206,6 +231,21 @@ void __lldbscript__print_buffer() {
             (void)__builtin_trap();
         }
     }
+}
+
+size_t __lldbscript__move(size_t from, size_t to) {
+    struct __lldbscript__TypeResolverHeader * current 
+                = (struct __lldbscript__TypeResolverHeader *)((size_t)__lldbscript__resolutionBuffer + from);
+
+    size_t copy_size = current->size + sizeof(struct __lldbscript__TypeResolverHeader);
+    uint8_t *from_ptr = (uint8_t *)((size_t)__lldbscript__resolutionBuffer + from);
+    uint8_t *to_ptr = (uint8_t *)((size_t)__lldbscript__resolutionBuffer + to);
+
+    for(size_t i = 0; i < copy_size; i++) {
+        to_ptr[i] = from_ptr[i];
+    }
+
+    return to + copy_size;
 }
 
 void __lldbscript__breakpoint_slot() {
