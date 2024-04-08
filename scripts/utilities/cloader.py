@@ -9,7 +9,7 @@ class CLoader:
 
     def file_content(self, set_lldb_env: bool = False) -> str:
         dirname: str = os.path.dirname(os.path.abspath(__file__))
-        handle = open( dirname + "/" + self.filename, "r")
+        handle = open( dirname + "/../../csources/" + self.filename, "r")
         result: str = handle.read()
         if set_lldb_env == True:
             result = "#define LLDB_EXPR_ENV \n" + result

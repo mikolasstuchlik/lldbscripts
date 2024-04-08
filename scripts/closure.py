@@ -2,7 +2,9 @@ import lldb
 import os
 import re
 from typing import Any, Optional, Union
-from commons import pointer_is_in_readwrite_memory, read_qword, read_memory, read_c_string, locate_swift_API_functin_in_binary, address_is_in_executable_memory
+from utilities.for_lldb import pointer_is_in_readwrite_memory, read_qword, read_memory, address_is_in_executable_memory
+from utilities.for_swift import get_opaque_summary, get_type_name
+from utilities.constants import arm_instruction_size_constant
 
 def report_closure_usage(
         debugger: lldb.SBDebugger, 
@@ -52,8 +54,6 @@ def report_closure_usage(
 
         return
 
-arm_instruction_size = 4
-
 def search_frame_for_closure(target: lldb.SBTarget, frame: lldb.SBFrame, closure_base: int) -> Optional[tuple[int, int]]:
     pcReg: lldb.SBValue = frame.FindRegister("pc")
     pc_reg_address = pcReg.GetValueAsAddress() # invariant: we didn't start in frame 0
@@ -64,18 +64,18 @@ def search_frame_for_closure(target: lldb.SBTarget, frame: lldb.SBFrame, closure
          return None
     symbol_start_address = symbol_start.GetLoadAddress(target)
 
-    pc_reg_address -= arm_instruction_size
+    pc_reg_address -= arm_instruction_size_constant
 
     traced_register = address_represents_branch_reg_instruction(target, pc_reg_address)
     if traced_register == None:
         return None
-    pc_reg_address -= arm_instruction_size
+    pc_reg_address -= arm_instruction_size_constant
     
     while pc_reg_address >= symbol_start_address:
         result = address_loads_to_register_with_sp_offset(target, pc_reg_address, traced_register)
         if result != None:
             return test_suspected_address_for_closure(frame, target, result)
-        pc_reg_address -= arm_instruction_size
+        pc_reg_address -= arm_instruction_size_constant
     
     return None
 
@@ -97,7 +97,7 @@ def test_suspected_address_for_closure(
     if closure == None:
         return None
     
-    #We can not compare pointer to a specific address, because there might be a thunk
+    #We can not compare pointer to a specific address, because there might be a tail call in between
     if not address_is_in_executable_memory(process, closure):
         return None
     
@@ -152,30 +152,13 @@ def get_opaque_summary_suspected_heap_object(target: lldb.SBTarget, frame: lldb.
     if not pointer_is_in_readwrite_memory(process, heap_object):
         return None
 
-    opaque_summary_addr = locate_swift_API_functin_in_binary(target, "swift_OpaqueSummary")
-    if opaque_summary_addr == None:
-        print("Error: Could not locate swift_OpaqueSummary in target.")
-        return None
+    opaque_summary: Optional[str] = get_opaque_summary(target, frame, heap_object)
+    if opaque_summary != None:
+        return opaque_summary
     
-    options = lldb.SBExpressionOptions()
-    options.SetLanguage(lldb.eLanguageTypeC)
-
-    expression: str = f"((char *(*)(void *)){hex(opaque_summary_addr)})(*(void **){hex(heap_object)})"
-    summary_result: lldb.SBValue = frame.EvaluateExpression(expression, options)
-    summary_ptr: int = summary_result.GetValueAsAddress()
-    if summary_ptr != 0:
-        return read_c_string(target, summary_ptr)
-
-    type_name_addr = locate_swift_API_functin_in_binary(target, "swift_getTypeName")
-    if type_name_addr == None:
-        print("Error: Could not locate swift_getTypeName in target.")
-        return None
-    
-    expression: str = f"((char *(*)(void *, uint)){hex(type_name_addr)})(*(void **){hex(heap_object)}, 0)"
-    name_result: lldb.SBValue = frame.EvaluateExpression(expression, options)
-    name_ptr: int = name_result.GetValueAsAddress()
-    if name_ptr != 0:
-        return read_c_string(target, name_ptr)
+    type_name: Optional[str] = get_type_name(target, frame, heap_object)
+    if type_name != None:
+        return type_name
 
     return None
 
@@ -194,4 +177,4 @@ def __lldb_init_module(
         internal_dict: dict[str, Any]
         ):
     debugger.HandleCommand("command script add -f " + __name__ + ".report_closure_usage closure")
-    print("Closure script loaded")
+    print("Script `closure` is installed.")

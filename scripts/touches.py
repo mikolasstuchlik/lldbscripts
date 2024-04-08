@@ -15,4 +15,4 @@ def touches_began_callback(frame: lldb.SBFrame, bp_loc: lldb.SBBreakpointLocatio
 
 def __lldb_init_module(debugger, internal_dict):
     debugger.HandleCommand("command script add -f " + __name__ + ".add_touches_began_breakpoint touch")
-    print("Touches script loaded")
+    print("Script `touch` is installed.")

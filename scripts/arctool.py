@@ -4,8 +4,9 @@ import os
 import argparse
 import shlex
 from typing import Any, Optional, Union
-from commons import evaluate_c_expression, dump_expr_error
-from csources import cloader
+from utilities.for_lldb import dump_expr_error
+from utilities.for_c import evaluate_c_expression
+from utilities.cloader import CFiles, load_c_file
 
 def make_breakpoint(frame: lldb.SBFrame, address: int):
     thread: lldb.SBThread = frame.GetThread()
@@ -32,33 +33,33 @@ class ArcTool:
         self.__override_swift_allocObject(frame)
     
     def __inject_arctool_resolution(self, frame: lldb.SBFrame):
-        dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.acrtool_resolution), top_level=True))
+        dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.acrtool_resolution), top_level=True))
         dump_expr_error(evaluate_c_expression(frame, "(void)__lldbscript__initialize_buffer();"))
 
     def __inject_supporting_c_routines(self, frame: lldb.SBFrame):
-        dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.printing), top_level=True))
-        dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.swift_printing), top_level=True))
+        dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.printing), top_level=True))
+        dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.swift_printing), top_level=True))
 
     def __override_swift_retain(self, frame: lldb.SBFrame) -> Optional[int]:
-        if dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.retain_override), top_level=True)) == None:
+        if dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.retain_override), top_level=True)) == None:
             return None
-        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.retain_interpose)))
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.retain_interpose)))
         if result == None:
             return None
         return result.GetValueAsAddress()
 
     def __override_swift_release(self, frame: lldb.SBFrame) -> Optional[int]:
-        if dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.release_override), top_level=True)) == None:
+        if dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.release_override), top_level=True)) == None:
             return None
-        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.release_interpose)))
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.release_interpose)))
         if result == None:
             return None
         return result.GetValueAsAddress()
     
     def __override_swift_allocObject(self, frame: lldb.SBFrame) -> Optional[int]:
-        if dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.alloc_override), top_level=True)) == None:
+        if dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.alloc_override), top_level=True)) == None:
             return None
-        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, cloader.load_c_file(cloader.CFiles.alloc_interpose)))
+        result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, load_c_file(CFiles.alloc_interpose)))
         if result == None:
             return None
         return result.GetValueAsAddress()
@@ -78,8 +79,7 @@ class ArcTool:
             len=length
         )
         dump_expr_error(evaluate_c_expression(frame, expression))
-        
-    
+ 
     def list(self, frame: lldb.SBFrame):
         dump_expr_error(evaluate_c_expression(frame, "(void)__lldbscript__print_buffer();"))
 
@@ -201,5 +201,3 @@ def __lldb_init_module(
     )
     print("Script `arctool` is installed.")
 
-    # create dummy breakpoint which will install arctool
-    debugger.HandleCommand("breakpoint set -n main -C 'arctool init' -C 'arctool monitor -n closure.Cls' -C 'arctool toggle' -C c") # make onetime # escape quotes
