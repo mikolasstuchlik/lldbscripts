@@ -1,8 +1,8 @@
 from typing import Optional
 import lldb
-from for_c import evaluate_c_expression
-from for_lldb import dump_expr_error, read_null_terminated_string
-from constants import null_constant
+from utilities.for_lldb import dump_expr_error, read_null_terminated_string, pointer_is_in_readwrite_memory
+from utilities.for_c import evaluate_c_expression
+from utilities.constants import null_constant
 
 def locate_swift_API_functin_in_binary(target: lldb.SBTarget, name: str) -> Optional[int]:
     matches: lldb.SBSymbolContextList = target.FindGlobalFunctions(name, 0, lldb.eMatchTypeRegex)
@@ -33,3 +33,18 @@ def get_type_name(target: lldb.SBTarget, frame: lldb.SBFrame, heap_object: int) 
     summary_result: Optional[lldb.SBValue] = dump_expr_error(evaluate_c_expression(frame, expression))
     if summary_result != None and summary_result.GetValueAsAddress() != null_constant:
         return read_null_terminated_string(target, summary_result.GetValueAsAddress())
+
+def get_opaque_summary_suspected_heap_object(target: lldb.SBTarget, frame: lldb.SBFrame, heap_object: int) -> Optional[str]:
+    process: lldb.SBProcess = target.GetProcess()
+    if not pointer_is_in_readwrite_memory(process, heap_object):
+        return None
+
+    opaque_summary: Optional[str] = get_opaque_summary(target, frame, heap_object)
+    if opaque_summary != None:
+        return opaque_summary
+    
+    type_name: Optional[str] = get_type_name(target, frame, heap_object)
+    if type_name != None:
+        return type_name
+
+    return None

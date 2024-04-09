@@ -3,7 +3,7 @@ import os
 import re
 from typing import Any, Optional, Union
 from utilities.for_lldb import pointer_is_in_readwrite_memory, read_qword, read_memory, address_is_in_executable_memory
-from utilities.for_swift import get_opaque_summary, get_type_name
+from utilities.for_swift import get_opaque_summary, get_type_name, get_opaque_summary_suspected_heap_object
 from utilities.constants import arm_instruction_size_constant
 
 def report_closure_usage(
@@ -147,21 +147,6 @@ def is_address_entry_point_to_known_closure(target: lldb.SBTarget, address: int)
             return True
     return False
 
-def get_opaque_summary_suspected_heap_object(target: lldb.SBTarget, frame: lldb.SBFrame, heap_object: int) -> Optional[str]:
-    process: lldb.SBProcess = target.GetProcess()
-    if not pointer_is_in_readwrite_memory(process, heap_object):
-        return None
-
-    opaque_summary: Optional[str] = get_opaque_summary(target, frame, heap_object)
-    if opaque_summary != None:
-        return opaque_summary
-    
-    type_name: Optional[str] = get_type_name(target, frame, heap_object)
-    if type_name != None:
-        return type_name
-
-    return None
-
 def frame_symbol_indicates_closure(frame: lldb.SBFrame) -> bool:
     name: str = frame.GetSymbol().GetName()
     return symbol_name_indicates_closure(name)
@@ -176,5 +161,5 @@ def __lldb_init_module(
         debugger: lldb.SBDebugger, 
         internal_dict: dict[str, Any]
         ):
-    debugger.HandleCommand("command script add -f " + __name__ + ".report_closure_usage closure")
-    print("Script `closure` is installed.")
+    debugger.HandleCommand("command script add -f " + __name__ + ".report_closure_usage closuresearch")
+    print("Script `closuresearch` is installed.")

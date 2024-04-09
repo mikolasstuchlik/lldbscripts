@@ -8,12 +8,6 @@ from utilities.for_lldb import dump_expr_error
 from utilities.for_c import evaluate_c_expression
 from utilities.cloader import CFiles, load_c_file
 
-def make_breakpoint(frame: lldb.SBFrame, address: int):
-    thread: lldb.SBThread = frame.GetThread()
-    process: lldb.SBProcess = thread.GetProcess() 
-    target: lldb.SBTarget = process.GetTarget()
-    target.GetDebugger().HandleCommand(f"breakpoint set -a {hex(address)}")
-
 class ArcTool:
     key: str = "ArcToolContext"
 
