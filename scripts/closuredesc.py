@@ -71,6 +71,9 @@ def describe_result(target: lldb.SBTarget, frame: lldb.SBFrame, fp: int, ctx: in
         ctx_desc = hex(ctx) + " " + ctx_summary
     else:
         ctx_desc = hex(ctx) + " <unknown>"
+    
+    print("Function pointer: " + fp_desc)
+    print("Closure context: " + ctx_desc)
 
 def print_result(fp: str, ctx: str):
     print("Function ptr: " + fp)
@@ -97,7 +100,7 @@ def generateOptionParser() -> argparse.ArgumentParser:
         )
     return parser
 
-def __lldb_init_module(debugger, internal_dict):
+def __lldb_init_module(debugger: lldb.SBDebugger, dict: dict[str, Any]):
     helpText: str = generateOptionParser().format_help()
     debugger.HandleCommand(
         'command script add --help "{help}" --function {function} {name}'.format(

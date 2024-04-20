@@ -2,7 +2,6 @@ from typing import Optional, Any
 from utilities.for_swift import get_opaque_summary_suspected_heap_object
 from utilities.commons import str_to_i
 import lldb
-import argparse
 import shlex
 
 def describe_heap_object(
@@ -16,7 +15,7 @@ def describe_heap_object(
     selected_frame: lldb.SBFrame = thread.GetSelectedFrame()
 
     args: list[str] = shlex.split(command)
-
+    
     for address in args:
         try:
             int_address = str_to_i(address)
@@ -27,7 +26,7 @@ def describe_heap_object(
         except:
             print("Address " + address + " is not a valid input")
 
-def __lldb_init_module(debugger, internal_dict):
+def __lldb_init_module(debugger: lldb.SBDebugger, dict: dict[str, Any]):
     debugger.HandleCommand(
         'command script add --help "{help}" --function {function} {name}'.format(
             # escape quotes

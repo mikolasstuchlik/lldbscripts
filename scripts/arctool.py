@@ -1,9 +1,8 @@
 # https://github.com/apple/swift/blob/main/include/swift/Runtime/InstrumentsSupport.h
 import lldb
-import os
 import argparse
 import shlex
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from utilities.for_lldb import dump_expr_error
 from utilities.for_c import evaluate_c_expression
 from utilities.cloader import CFiles, load_c_file

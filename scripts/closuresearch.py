@@ -1,9 +1,8 @@
 import lldb
-import os
 import re
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from utilities.for_lldb import pointer_is_in_readwrite_memory, read_qword, read_memory, address_is_in_executable_memory
-from utilities.for_swift import get_opaque_summary, get_type_name, get_opaque_summary_suspected_heap_object
+from utilities.for_swift import get_opaque_summary_suspected_heap_object
 from utilities.constants import arm_instruction_size_constant
 
 def report_closure_usage(
