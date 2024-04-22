@@ -1,12 +1,6 @@
 from typing import Optional
 import lldb
 
-def make_breakpoint(frame: lldb.SBFrame, address: int):
-    thread: lldb.SBThread = frame.GetThread()
-    process: lldb.SBProcess = thread.GetProcess() 
-    target: lldb.SBTarget = process.GetTarget()
-    target.GetDebugger().HandleCommand(f"breakpoint set -a {hex(address)}")
-
 def read_qword(process: lldb.SBProcess, address: int) -> Optional[int]:
     result: Optional[bytes] = read_memory(process, address, 8)
     if result == None:
