@@ -2,6 +2,8 @@
 
 This repository contains set of lldb scripts for Swift developers.
 
+**You can find scripts related to my talks in the `/talks` directory.**
+
 ## Install
 
 Clone this repository
